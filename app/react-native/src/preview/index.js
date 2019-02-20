@@ -15,6 +15,24 @@ import StoryView from './components/StoryView/index';
 const STORAGE_KEY = 'lastOpenedStory';
 
 export default class Preview {
+  constructor() {
+    this._addons = {};
+    this._decorators = [];
+    this._stories = new StoryStore();
+    this._clientApi = new ClientApi({ storyStore: this._stories });
+
+    [
+      'storiesOf',
+      'setAddon',
+      'addDecorator',
+      'addParameters',
+      'clearDecorators',
+      'getStorybook',
+    ].forEach(method => {
+      this[method] = this._clientApi[method].bind(this._clientApi);
+    });
+  }
+
   configure(loadStories, module) {
     loadStories();
     if (module && module.hot) {
@@ -72,22 +90,6 @@ export default class Preview {
 
       channel.emit(Events.CHANNEL_CREATED);
     }
-
-    this._addons = {};
-    this._decorators = [];
-    this._stories = new StoryStore({ channel });
-    this._clientApi = new ClientApi({ storyStore: this._stories });
-
-    [
-      'storiesOf',
-      'setAddon',
-      'addDecorator',
-      'addParameters',
-      'clearDecorators',
-      'getStorybook',
-    ].forEach(method => {
-      this[method] = this._clientApi[method].bind(this._clientApi);
-    });
 
     channel.on(Events.GET_STORIES, () => this._sendSetStories());
     channel.on(Events.SET_CURRENT_STORY, d => this._selectStoryEvent(d));
