@@ -18,8 +18,73 @@ export default class Preview {
   constructor() {
     this._addons = {};
     this._decorators = [];
-    this._stories = new StoryStore();
+
+    let webUrl = null;
+    let channel = null;
+
+    const params = {};
+
+    const onDeviceUI = params.onDeviceUI !== false;
+    const { initialSelection, shouldPersistSelection } = params;
+    // should the initial story be sent to storybookUI
+    // set to true if using disableWebsockets or if connection to WebsocketServer fails.
+    let setInitialStory = false;
+
+    try {
+      channel = addons.getChannel();
+    } catch (e) {
+      // getChannel throws if the channel is not defined,
+      // which is fine in this case (we will define it below)
+    }
+
+    if (!channel || params.resetStorybook) {
+      if (onDeviceUI && params.disableWebsockets) {
+        channel = new Channel({ async: true });
+      } else {
+        const host =
+          params.host || parse(NativeModules.SourceCode.scriptURL).hostname || 'localhost';
+        const port = params.port !== false ? `:${params.port || 7007}` : '';
+
+        const query = params.query || '';
+        const { secured } = params;
+        const websocketType = secured ? 'wss' : 'ws';
+        const httpType = secured ? 'https' : 'http';
+
+        const url = `${websocketType}://${host}${port}/${query}`;
+        webUrl = `${httpType}://${host}${port}`;
+        channel = createChannel({
+          url,
+          async: onDeviceUI,
+          onError: () => {
+            // We are both emitting event and telling the component to get initial story. It may happen that component is created before the error or vise versa.
+            // This way we handle both cases
+            this._setInitialStory(initialSelection, shouldPersistSelection);
+
+            setInitialStory = true;
+          },
+        });
+      }
+
+      addons.setChannel(channel);
+
+      channel.emit(Events.CHANNEL_CREATED);
+    }
+
+    channel.on(Events.GET_STORIES, () => this._sendSetStories());
+    channel.on(Events.SET_CURRENT_STORY, d => this._selectStoryEvent(d));
+
+    this._stories = new StoryStore({ channel });
     this._clientApi = new ClientApi({ storyStore: this._stories });
+
+    // CAN WE DO THIS HERE?
+    // this._sendSetStories();
+
+    // // If the app is started with server running, set the story as the one selected in the browser
+    // if (webUrl) {
+    //   this._sendGetCurrentStory();
+    // } else {
+    //   setInitialStory = true;
+    // }
 
     [
       'storiesOf',
