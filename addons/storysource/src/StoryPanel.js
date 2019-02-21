@@ -5,6 +5,7 @@ import { css, jsx } from '@emotion/core';
 import { Editor } from '@storybook/components';
 import { document } from 'global';
 import { FileExplorer, BrowserPreview, SandpackProvider } from 'react-smooshpack';
+import Draggable from 'react-draggable';
 import { SAVE_FILE_EVENT_ID, STORY_EVENT_ID } from './events';
 
 const getLocationKeys = locationsMap =>
@@ -153,6 +154,10 @@ export default class StoryPanel extends Component {
     });
   };
 
+  handleFileExplorerResize = (e, { x }) => {
+    this.setState({ fileExplorerWidth: x });
+  };
+
   changePosition = (e, editor, monaco) => {
     const {
       additionalStyles,
@@ -195,55 +200,82 @@ export default class StoryPanel extends Component {
 
   render = () => {
     const { channel, active } = this.props;
-    const { source, additionalStyles, dependencies, localDependencies } = this.state;
+    const {
+      source,
+      additionalStyles,
+      dependencies,
+      localDependencies,
+      fileExplorerWidth,
+    } = this.state;
     return active ? (
-      <div>
-        <SandpackProvider
-          className={css`
-            font-family: Helvetica, sans-serif;
-            box-sizing: border-box;
-          `}
-          files={{ ...localDependencies, '/index.js': { code: source } }}
-          dependencies={Object.assign({}, ...(dependencies || []).map(d => ({ [d]: 'latest' })))}
-          entry="/index.js"
+      <SandpackProvider
+        style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'row' }}
+        files={{ ...localDependencies, '/index.js': { code: source } }}
+        dependencies={Object.assign({}, ...(dependencies || []).map(d => ({ [d]: 'latest' })))}
+        entry="/index.js"
+      >
+        <div
+          style={{
+            fontFamily: 'Helvetica, sans-serif',
+            boxSizing: 'border-box',
+            backgroundColor: '#24282a',
+            color: 'white',
+            paddingTop: '0.5em',
+            minWidth: `${fileExplorerWidth || 127}px`,
+          }}
+        >
+          <FileExplorer />
+        </div>
+        <Draggable
+          axis="x"
+          style={{ flex: 1 }}
+          bounds={{ left: 127 }}
+          defaultPosition={{ x: fileExplorerWidth || 127, y: 0 }}
+          onDrag={this.handleFileExplorerResize}
+          onDragEnd={this.handleFileExplorerResize}
         >
           <div
-            style={{ display: 'flex', backgroundColor: '#24282a', width: '100%', height: '100%' }}
+            style={{
+              zIndex: 10,
+              width: '5',
+              height: '100%',
+              position: 'absolute',
+              cursor: 'col-resize',
+            }}
           >
-            <FileExplorer
-              className={css`
-                background-color: #24282a;
-                color: white;
-                padding-top: 0.5em;
-                flex: 1;
-              `}
-            />
-            <BrowserPreview
-              className={css`
-                display: flex;
-                align-items: center;
-                background-color: whitesmoke;
-                width: 100%;
-                padding: 0.5rem;
-                border-radius: 2px;
-                border-bottom: 1px solid #ddd;
-              `}
-            />
+            &nbsp;
           </div>
-        </SandpackProvider>
-        <Editor
-          css={additionalStyles}
-          source={source}
-          onChange={this.updateSource}
-          componentDidMount={this.editorDidMount}
-          changePosition={this.changePosition}
-          onStoryRendered={this.onStoryRendered}
-          channel={channel}
-          resizeContainerReference={() =>
-            (document.getElementById('storybook-panel-root') || {}).parentNode
-          }
+        </Draggable>
+        <div
+          css={css`
+            flex: 1;
+            width: 100%;
+            height: 100%;
+          `}
+        >
+          <Editor
+            css={additionalStyles}
+            source={source}
+            onChange={this.updateSource}
+            componentDidMount={this.editorDidMount}
+            changePosition={this.changePosition}
+            onStoryRendered={this.onStoryRendered}
+            channel={channel}
+            resizeContainerReference={() =>
+              (document.getElementById('storybook-panel-root') || {}).parentNode
+            }
+          />
+        </div>
+        <BrowserPreview
+          className={css`
+            align-items: center;
+            background-color: whitesmoke;
+            padding: 0.5rem;
+            border-radius: 2px;
+            border-bottom: 1px solid #ddd;
+          `}
         />
-      </div>
+      </SandpackProvider>
     ) : null;
   };
 }

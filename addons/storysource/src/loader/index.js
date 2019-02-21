@@ -9,7 +9,7 @@ function extractDependenciesFrom(tree) {
   return !Object.entries(tree || {}).length
     ? []
     : Object.entries(tree)
-        .map(([path, value]) =>
+        .map(([, value]) =>
           (value.dependencies || []).concat(extractDependenciesFrom(value.localDependencies))
         )
         .reduce((acc, value) => acc.concat(value), []);
@@ -19,9 +19,9 @@ function extractLocalDependenciesFrom(tree) {
   return !Object.entries(tree || {}).length
     ? {}
     : Object.assign(
-        ...Object.entries(tree).map(([path, value]) =>
+        ...Object.entries(tree).map(([thisPath, value]) =>
           Object.assign(
-            { [path]: value.source },
+            { [thisPath]: value.source },
             extractLocalDependenciesFrom(value.localDependencies)
           )
         )
@@ -75,7 +75,7 @@ function readAsObject(classLoader, inputSource) {
   )
     .then(data =>
       Promise.all(
-        data.map(({ d, err, extension, dependencyFile, sourceMap, theModule }) =>
+        data.map(({ dependencyFile, theModule }) =>
           readAsObject(
             Object.assign({}, classLoader, {
               resourcePath: theModule.resourcePath || theModule.resource,
@@ -88,10 +88,7 @@ function readAsObject(classLoader, inputSource) {
           ? {}
           : Object.assign(
               ...data
-                .map(({ d, err, extension, dependencyFile, sourceMap, theModule }, i) => [
-                  moduleObjects[i],
-                  extension,
-                ])
+                .map(({ extension }, i) => [moduleObjects[i], extension])
                 .map(([asObject, extension], i) => ({
                   [`${renamedModuleDependencies[i]}.${extension}`]: asObject,
                 }))
@@ -104,7 +101,8 @@ function readAsObject(classLoader, inputSource) {
       addsMap,
       dependencies: dependencies
         .concat(extractDependenciesFrom(localDependencies))
-        .filter(d => d[0] !== '.' && d[0] !== '/'),
+        .filter(d => d[0] !== '.' && d[0] !== '/')
+        .map(d => (d[0] === '@' ? `${d.split('/')[0]}/${d.split('/')[1]}` : d.split('/')[0])),
       localDependencies: Object.assign(
         ...Object.entries(localDependencies).map(([name, value]) => ({ [name]: value.source })),
         extractLocalDependenciesFrom(localDependencies)
