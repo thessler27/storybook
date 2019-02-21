@@ -5,6 +5,7 @@ import {
   generateSourceWithoutDecorators,
   generateStorySource,
   generateAddsMap,
+  generateDependencies,
 } from './generate-helpers';
 
 function extendOptions(source, comments, filepath, options) {
@@ -34,12 +35,14 @@ function inject(source, decorator, filepath, options = {}) {
 
   const storySource = generateStorySource(extendOptions(source, comments, filepath, options));
   const addsMap = generateAddsMap(storySource, options.parser);
+  const dependencies = generateDependencies(storySource, options.parser);
 
   return {
     source: newSource,
     storySource,
     addsMap,
     changed,
+    dependencies,
   };
 }
 

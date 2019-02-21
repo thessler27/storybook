@@ -1,4 +1,4 @@
-import { handleADD, handleSTORYOF, patchNode } from './parse-helpers';
+import { handleADD, handleSTORYOF, asImport, patchNode } from './parse-helpers';
 
 const estraverse = require('estraverse');
 
@@ -35,4 +35,20 @@ export function findAddsMap(ast) {
   });
 
   return adds;
+}
+
+export function findDependencies(ast) {
+  const dependencies = [];
+
+  estraverse.traverse(ast, {
+    fallback: 'iteration',
+    enter: (node, parent) => {
+      patchNode(node);
+
+      if (node.type === 'ImportDeclaration') {
+        dependencies.push(asImport(node, parent));
+      }
+    },
+  });
+  return dependencies;
 }

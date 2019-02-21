@@ -108,3 +108,7 @@ export function handleSTORYOF(node, parts, source, lastIndex) {
   pushParts(source, parts, lastIndex, node.end);
   return node.end;
 }
+
+export function asImport(node, parent) {
+  return node.source.value;
+}
